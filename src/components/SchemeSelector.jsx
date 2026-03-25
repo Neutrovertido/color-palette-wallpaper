@@ -7,6 +7,8 @@ export default function SchemeSelector({
   onSchemeChange, 
   intensity, 
   onIntensityChange,
+  noiseIntensity,
+  onNoiseChange,
   isLoading 
 }) {
   return (
@@ -68,6 +70,26 @@ export default function SchemeSelector({
             className="intensity-slider"
           />
           <span className="intensity-label">Colorized</span>
+        </div>
+      </div>
+
+      <div className="selector-group">
+        <label htmlFor="noise-slider">
+          Paper Grain: {Math.round(noiseIntensity * 100)}%
+        </label>
+        <div className="intensity-container">
+          <span className="intensity-label">Smooth</span>
+          <input
+            id="noise-slider"
+            type="range"
+            min="0"
+            max="100"
+            value={Math.round(noiseIntensity * 100)}
+            onChange={(e) => onNoiseChange(parseInt(e.target.value, 10) / 100)}
+            disabled={isLoading}
+            className="intensity-slider"
+          />
+          <span className="intensity-label">Noisy</span>
         </div>
       </div>
     </div>

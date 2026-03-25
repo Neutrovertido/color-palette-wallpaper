@@ -4,13 +4,14 @@ import PreviewPanel from './components/PreviewPanel';
 import SchemeSelector from './components/SchemeSelector';
 import DownloadButton from './components/DownloadButton';
 import { colorPalettes } from './data/colorPalettes';
-import { colorizeImage, copyCanvas } from './utils/imageProcessing';
+import { colorizeImage, copyCanvas, applyPaperNoise } from './utils/imageProcessing';
 import './styles/App.css';
 
 export default function App() {
   const [originalImage, setOriginalImage] = useState(null);
   const [selectedScheme, setSelectedScheme] = useState('');
   const [intensity, setIntensity] = useState(1.0);
+  const [noiseIntensity, setNoiseIntensity] = useState(0.2);
   const [colorizedCanvas, setColorizedCanvas] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const workingCanvasRef = useRef(null);
@@ -20,6 +21,7 @@ export default function App() {
     setOriginalImage(img);
     setSelectedScheme('');
     setIntensity(1.0);
+    setNoiseIntensity(0.2);
     setColorizedCanvas(null);
   };
 
@@ -57,6 +59,7 @@ export default function App() {
           
           if (palette) {
             colorizeImage(workingCanvas, palette.colors, intensity);
+            applyPaperNoise(workingCanvas, noiseIntensity);
             
             // Create a copy for display
             const displayCanvas = copyCanvas(workingCanvas);
@@ -72,7 +75,7 @@ export default function App() {
     };
 
     processColorization();
-  }, [selectedScheme, intensity, originalImage]);
+  }, [selectedScheme, intensity, noiseIntensity, originalImage]);
 
   return (
     <div className="app">
@@ -95,6 +98,8 @@ export default function App() {
                   onSchemeChange={setSelectedScheme}
                   intensity={intensity}
                   onIntensityChange={setIntensity}
+                  noiseIntensity={noiseIntensity}
+                  onNoiseChange={setNoiseIntensity}
                   isLoading={isLoading}
                 />
                 <DownloadButton
@@ -108,6 +113,7 @@ export default function App() {
                     setOriginalImage(null);
                     setSelectedScheme('');
                     setIntensity(1.0);
+                    setNoiseIntensity(0.2);
                     setColorizedCanvas(null);
                   }}
                 >

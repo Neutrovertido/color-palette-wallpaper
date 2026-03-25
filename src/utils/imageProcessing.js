@@ -27,6 +27,15 @@ function colorDistance(color1, color2) {
   );
 }
 
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function seededNoise(x, y, seed) {
+  const n = Math.sin((x + 1) * 12.9898 + (y + 1) * 78.233 + seed * 37.719) * 43758.5453;
+  return n - Math.floor(n);
+}
+
 // K-means clustering for dominant color extraction
 function extractDominantColors(imageData, colorCount = 8) {
   const data = imageData.data;
@@ -178,6 +187,44 @@ export function colorizeImage(canvas, targetPaletteColors, intensity = 1.0) {
 
   // Put the colorized data back
   ctx.putImageData(colorizedImageData, 0, 0);
+}
+
+// Adds subtle paper grain similar to printed manga texture.
+export function applyPaperNoise(canvas, intensity = 0.0) {
+  if (intensity <= 0) return;
+
+  const ctx = canvas.getContext('2d');
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = imageData.data;
+  const width = canvas.width;
+
+  for (let i = 0; i < data.length; i += 4) {
+    const pixelIndex = i / 4;
+    const x = pixelIndex % width;
+    const y = Math.floor(pixelIndex / width);
+
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+
+    const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+
+    const highGrain = seededNoise(x, y, 11) - 0.5;
+    const softGrain = seededNoise(Math.floor(x / 3), Math.floor(y / 3), 23) - 0.5;
+    const fiberLine = seededNoise(0, y, 31) - 0.5;
+
+    const grain = highGrain * 0.65 + softGrain * 0.35 + fiberLine * 0.25;
+    const dynamicStrength = (8 + ((255 - luma) / 255) * 10) * intensity;
+    const delta = grain * dynamicStrength;
+
+    const paperWarmth = (seededNoise(x, y, 47) - 0.5) * 4 * intensity;
+
+    data[i] = clamp(Math.round(r + delta + paperWarmth), 0, 255);
+    data[i + 1] = clamp(Math.round(g + delta + paperWarmth * 0.8), 0, 255);
+    data[i + 2] = clamp(Math.round(b + delta - paperWarmth * 0.6), 0, 255);
+  }
+
+  ctx.putImageData(imageData, 0, 0);
 }
 
 // Export image as PNG
