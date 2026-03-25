@@ -1,5 +1,5 @@
 import React from 'react';
-import { paletteNames } from '../data/colorPalettes';
+import { colorPalettes, paletteNames } from '../data/colorPalettes';
 import '../styles/SchemeSelector.css';
 
 export default function SchemeSelector({ 
@@ -12,21 +12,43 @@ export default function SchemeSelector({
   return (
     <div className="scheme-selector">
       <div className="selector-group">
-        <label htmlFor="palette-select">Color Scheme</label>
-        <select
-          id="palette-select"
-          value={selectedScheme}
-          onChange={(e) => onSchemeChange(e.target.value)}
-          disabled={isLoading}
-          className="palette-dropdown"
-        >
-          <option value="">Choose a color scheme...</option>
-          {paletteNames.map(palette => (
-            <option key={palette.id} value={palette.id}>
-              {palette.label}
-            </option>
-          ))}
-        </select>
+        <span className="selector-label">Color Scheme</span>
+        <div className="palette-grid" role="radiogroup" aria-label="Color scheme selection">
+          {paletteNames.map((palette) => {
+            const paletteColors = colorPalettes[palette.id]?.colors || [];
+            const isSelected = selectedScheme === palette.id;
+
+            return (
+              <button
+                key={palette.id}
+                type="button"
+                role="radio"
+                aria-checked={isSelected}
+                aria-label={palette.label}
+                disabled={isLoading}
+                onClick={() => onSchemeChange(palette.id)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onSchemeChange(palette.id);
+                  }
+                }}
+                className={`palette-card ${isSelected ? 'selected' : ''}`}
+              >
+                <span className="palette-name">{palette.label}</span>
+                <span className="palette-swatches" aria-hidden="true">
+                  {paletteColors.slice(0, 8).map((color, index) => (
+                    <span
+                      key={`${palette.id}-${index}`}
+                      className="swatch"
+                      style={{ backgroundColor: color }}
+                    />
+                  ))}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div className="selector-group">

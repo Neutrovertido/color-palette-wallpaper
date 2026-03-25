@@ -15,44 +15,73 @@
   gap: 0.75rem;
 }
 
+.selector-label,
 .scheme-selector label {
   font-weight: 600;
   color: #f8f8f2;
   font-size: 0.95rem;
 }
 
-.palette-dropdown {
-  padding: 0.75rem 1rem;
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(139, 233, 253, 0.3);
-  border-radius: 6px;
+.palette-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0.75rem;
+}
+
+.palette-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0.7rem;
+  border-radius: 8px;
+  border: 1px solid rgba(139, 233, 253, 0.25);
+  background: rgba(0, 0, 0, 0.35);
   color: #f8f8f2;
-  font-size: 0.95rem;
+  text-align: left;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
-.palette-dropdown:hover:not(:disabled) {
-  border-color: #8be9fd;
-  background: rgba(0, 0, 0, 0.6);
-  box-shadow: 0 0 10px rgba(139, 233, 253, 0.2);
+.palette-card:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: rgba(255, 121, 198, 0.65);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
 }
 
-.palette-dropdown:focus {
-  outline: none;
+.palette-card:focus-visible {
+  outline: 2px solid #8be9fd;
+  outline-offset: 2px;
+}
+
+.palette-card.selected {
   border-color: #ff79c6;
-  box-shadow: 0 0 15px rgba(255, 121, 198, 0.2);
+  box-shadow: 0 0 0 2px rgba(255, 121, 198, 0.25);
+  background: rgba(255, 121, 198, 0.1);
 }
 
-.palette-dropdown:disabled {
-  opacity: 0.6;
+.palette-card:disabled {
+  opacity: 0.55;
   cursor: not-allowed;
 }
 
-.palette-dropdown option {
-  background: #1a1a1a;
-  color: #f8f8f2;
-  padding: 0.5rem;
+.palette-name {
+  font-size: 0.88rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.palette-swatches {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 3px;
+  width: 100%;
+}
+
+.swatch {
+  display: block;
+  aspect-ratio: 1 / 1;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .intensity-container {
@@ -143,8 +172,15 @@
     font-size: 0.9rem;
   }
 
-  .palette-dropdown {
-    padding: 0.6rem 0.8rem;
-    font-size: 0.9rem;
+  .palette-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .palette-card {
+    padding: 0.6rem;
+  }
+
+  .palette-name {
+    font-size: 0.82rem;
   }
 }
