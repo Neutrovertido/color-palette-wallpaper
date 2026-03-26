@@ -21,6 +21,10 @@
   background: #1a1a1a;
 }
 
+.preview-canvas.comparison-mode {
+  cursor: ew-resize;
+}
+
 .preview-controls {
   display: flex;
   flex-direction: column;
@@ -62,6 +66,22 @@
 .toggle-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.vs-btn {
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: 0.05em;
+}
+
+.vs-btn:hover:not(:disabled) {
+  background: rgba(139, 233, 253, 0.15);
+}
+
+.vs-btn.active {
+  background: linear-gradient(135deg, #8be9fd, #ff79c6);
+  color: #1a1a1a;
+  box-shadow: 0 4px 12px rgba(139, 233, 253, 0.4);
 }
 
 .preview-info {

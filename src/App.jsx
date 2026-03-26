@@ -92,7 +92,7 @@ export default function App() {
       <LoadingModal isVisible={isLoading} />
       
       <header className="app-header">
-        <h1>🎨 Wallpaper Colorizer</h1>
+        <h1>🧑‍🎨 Wallpaper Colorizer</h1>
         <p>Upload a wallpaper and explore it in different color schemes</p>
       </header>
 
