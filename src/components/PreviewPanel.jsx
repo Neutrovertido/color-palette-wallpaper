@@ -8,7 +8,7 @@ export default function PreviewPanel({
   onToggle 
 }) {
   const canvasRef = useRef(null);
-  const comparisonCanvasRef = useRef(null);
+  // const comparisonCanvasRef = useRef(null);
   const [isComparison, setIsComparison] = useState(false);
   const [sliderPosition, setSliderPosition] = useState(50);
 
