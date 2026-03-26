@@ -10,21 +10,11 @@ function hexToRgb(hex) {
   } : null;
 }
 
-// Helper function to convert RGB to hex
-function rgbToHex(r, g, b) {
-  return '#' + [r, g, b].map(x => {
-    const hex = x.toString(16);
-    return hex.length === 1 ? '0' + hex : hex;
-  }).join('');
-}
-
-// Calculate Euclidean distance between two colors in RGB space
-function colorDistance(color1, color2) {
-  return Math.sqrt(
-    Math.pow(color1.r - color2.r, 2) +
-    Math.pow(color1.g - color2.g, 2) +
-    Math.pow(color1.b - color2.b, 2)
-  );
+function squaredDistance(a, b) {
+  const dr = a[0] - b[0];
+  const dg = a[1] - b[1];
+  const db = a[2] - b[2];
+  return dr * dr + dg * dg + db * db;
 }
 
 function clamp(value, min, max) {
@@ -36,179 +26,152 @@ function seededNoise(x, y, seed) {
   return n - Math.floor(n);
 }
 
-function convertToMonochrome(imageData) {
-  const data = imageData.data;
-  const result = new ImageData(
-    new Uint8ClampedArray(data),
-    imageData.width,
-    imageData.height
-  );
-  const resultData = result.data;
+function computeCentroids(pixels, nClusters) {
+  const centroids = [];
+  centroids.push([...pixels[Math.floor(Math.random() * pixels.length)]]);
 
-  for (let i = 0; i < data.length; i += 4) {
-    // Perceptual grayscale conversion keeps luminance relationships stable.
-    const gray = Math.round(0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2]);
-    resultData[i] = gray;
-    resultData[i + 1] = gray;
-    resultData[i + 2] = gray;
-    resultData[i + 3] = data[i + 3];
+  for (let c = 1; c < nClusters; c++) {
+    const dists = new Float64Array(pixels.length);
+    let distSum = 0;
+
+    for (let i = 0; i < pixels.length; i++) {
+      let minDist = Infinity;
+      for (let j = 0; j < centroids.length; j++) {
+        const dist = Math.sqrt(squaredDistance(pixels[i], centroids[j]));
+        if (dist < minDist) minDist = dist;
+      }
+      dists[i] = minDist;
+      distSum += minDist;
+    }
+
+    if (distSum <= 0) {
+      centroids.push([...pixels[Math.floor(Math.random() * pixels.length)]]);
+      continue;
+    }
+
+    const threshold = Math.random() * distSum;
+    let cumulative = 0;
+    let chosenIndex = pixels.length - 1;
+
+    for (let i = 0; i < dists.length; i++) {
+      cumulative += dists[i];
+      if (cumulative >= threshold) {
+        chosenIndex = i;
+        break;
+      }
+    }
+
+    centroids.push([...pixels[chosenIndex]]);
   }
 
-  return result;
+  return centroids;
 }
 
-// K-means clustering for dominant color extraction
-function extractDominantColors(imageData, colorCount = 8) {
-  const data = imageData.data;
-  const pixels = [];
+function simpleKmeans(pixels, nClusters = 8, maxIter = 10) {
+  const k = Math.max(1, Math.min(nClusters, pixels.length));
+  const labels = new Uint16Array(pixels.length);
+  let centroids = computeCentroids(pixels, k);
 
-  // Sample pixels (every nth pixel for performance)
-  const sampleRate = Math.max(1, Math.floor(data.length / (colorCount * 500)));
-  for (let i = 0; i < data.length; i += sampleRate * 4) {
-    pixels.push({
-      r: data[i],
-      g: data[i + 1],
-      b: data[i + 2]
-    });
-  }
-
-  // Initialize centroids randomly from pixel data
-  const centroids = [];
-  for (let i = 0; i < colorCount; i++) {
-    centroids.push(pixels[Math.floor(Math.random() * pixels.length)]);
-  }
-
-  // K-means iterations
-  const maxIterations = 10;
-  for (let iteration = 0; iteration < maxIterations; iteration++) {
-    // Assign pixels to nearest centroid
-    const clusters = Array(colorCount).fill(null).map(() => []);
-    
-    for (const pixel of pixels) {
-      let nearestCentroid = 0;
-      let minDistance = Infinity;
-
-      for (let i = 0; i < centroids.length; i++) {
-        const distance = colorDistance(pixel, centroids[i]);
-        if (distance < minDistance) {
-          minDistance = distance;
-          nearestCentroid = i;
+  for (let iter = 0; iter < maxIter; iter++) {
+    for (let i = 0; i < pixels.length; i++) {
+      let bestIdx = 0;
+      let bestDist = Infinity;
+      for (let c = 0; c < k; c++) {
+        const dist = squaredDistance(pixels[i], centroids[c]);
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestIdx = c;
         }
       }
-
-      clusters[nearestCentroid].push(pixel);
+      labels[i] = bestIdx;
     }
 
-    // Update centroids
+    const sums = Array.from({ length: k }, () => [0, 0, 0, 0]);
+    for (let i = 0; i < pixels.length; i++) {
+      const cluster = labels[i];
+      sums[cluster][0] += pixels[i][0];
+      sums[cluster][1] += pixels[i][1];
+      sums[cluster][2] += pixels[i][2];
+      sums[cluster][3] += 1;
+    }
+
+    const newCentroids = Array.from({ length: k }, (_, c) => {
+      if (sums[c][3] === 0) return [...centroids[c]];
+      return [
+        sums[c][0] / sums[c][3],
+        sums[c][1] / sums[c][3],
+        sums[c][2] / sums[c][3]
+      ];
+    });
+
     let converged = true;
-    for (let i = 0; i < centroids.length; i++) {
-      if (clusters[i].length === 0) continue;
-
-      const newCentroid = {
-        r: Math.round(clusters[i].reduce((sum, p) => sum + p.r, 0) / clusters[i].length),
-        g: Math.round(clusters[i].reduce((sum, p) => sum + p.g, 0) / clusters[i].length),
-        b: Math.round(clusters[i].reduce((sum, p) => sum + p.b, 0) / clusters[i].length)
-      };
-
-      if (colorDistance(newCentroid, centroids[i]) > 1) {
+    for (let c = 0; c < k; c++) {
+      if (
+        Math.abs(newCentroids[c][0] - centroids[c][0]) > 1e-2 ||
+        Math.abs(newCentroids[c][1] - centroids[c][1]) > 1e-2 ||
+        Math.abs(newCentroids[c][2] - centroids[c][2]) > 1e-2
+      ) {
         converged = false;
+        break;
       }
-
-      centroids[i] = newCentroid;
     }
 
+    centroids = newCentroids;
     if (converged) break;
   }
 
-  return centroids.filter(c => c);
-}
-
-// Find closest color in palette to a given color
-function findClosestColor(color, palette) {
-  let closestColor = palette[0];
-  let minDistance = Infinity;
-
-  for (const paletteColor of palette) {
-    const distance = colorDistance(color, paletteColor);
-    if (distance < minDistance) {
-      minDistance = distance;
-      closestColor = paletteColor;
-    }
-  }
-
-  return closestColor;
-}
-
-// Build a color mapping from source to target palette
-function buildColorMap(sourceColors, targetPalette) {
-  const colorMap = new Map();
-
-  for (const sourceColor of sourceColors) {
-    const key = rgbToHex(sourceColor.r, sourceColor.g, sourceColor.b);
-    const closestTarget = findClosestColor(sourceColor, targetPalette);
-    colorMap.set(key, closestTarget);
-  }
-
-  return colorMap;
-}
-
-// Apply color mapping to image with intensity control
-function applyColorMapping(imageData, colorMap, targetPalette, intensity = 1.0) {
-  const data = imageData.data;
-  const result = new ImageData(
-    new Uint8ClampedArray(data),
-    imageData.width,
-    imageData.height
-  );
-  const resultData = result.data;
-
-  for (let i = 0; i < data.length; i += 4) {
-    const originalColor = {
-      r: data[i],
-      g: data[i + 1],
-      b: data[i + 2],
-      a: data[i + 3]
-    };
-
-    // Find closest color from source palette
-    const closestSourceKey = rgbToHex(originalColor.r, originalColor.g, originalColor.b);
-    let targetColor = colorMap.get(closestSourceKey);
-
-    // If not in map, find closest anyway
-    if (!targetColor) {
-      targetColor = findClosestColor(originalColor, targetPalette);
-    }
-
-    // Blend original with target based on intensity
-    resultData[i] = Math.round(originalColor.r + (targetColor.r - originalColor.r) * intensity);
-    resultData[i + 1] = Math.round(originalColor.g + (targetColor.g - originalColor.g) * intensity);
-    resultData[i + 2] = Math.round(originalColor.b + (targetColor.b - originalColor.b) * intensity);
-    resultData[i + 3] = originalColor.a;
-  }
-
-  return result;
+  return { labels, centroids };
 }
 
 // Main colorization function
 export function colorizeImage(canvas, targetPaletteColors, intensity = 1.0) {
   const ctx = canvas.getContext('2d');
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const monochromeImageData = convertToMonochrome(imageData);
+  const data = imageData.data;
+  const blend = clamp(intensity, 0, 1);
 
-  // Extract dominant tones from the monochrome image before palette conversion.
-  const sourceColors = extractDominantColors(monochromeImageData, Math.min(12, targetPaletteColors.length));
+  const pixels = new Array(canvas.width * canvas.height);
+  for (let i = 0, p = 0; i < data.length; i += 4, p++) {
+    pixels[p] = [data[i], data[i + 1], data[i + 2]];
+  }
 
-  // Convert hex palette to RGB
-  const targetPaletteRgb = targetPaletteColors.map(hexToRgb);
+  const nColors = Math.max(1, Math.min(8, targetPaletteColors.length));
+  const { labels, centroids } = simpleKmeans(pixels, nColors, 10);
 
-  // Build color mapping
-  const colorMap = buildColorMap(sourceColors, targetPaletteRgb);
+  const targetPalette = targetPaletteColors.map(hexToRgb).filter(Boolean).map(c => [c.r, c.g, c.b]);
+  if (targetPalette.length === 0) return;
 
-  // Apply mapping with intensity
-  const colorizedImageData = applyColorMapping(monochromeImageData, colorMap, targetPaletteRgb, intensity);
+  const mappedPalette = centroids.map((center) => {
+    let bestIdx = 0;
+    let bestDist = Infinity;
+    for (let i = 0; i < targetPalette.length; i++) {
+      const dist = squaredDistance(center, targetPalette[i]);
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestIdx = i;
+      }
+    }
+    return targetPalette[bestIdx];
+  });
 
-  // Put the colorized data back
-  ctx.putImageData(colorizedImageData, 0, 0);
+  const blendedColors = mappedPalette.map((mapped, idx) => {
+    const center = centroids[idx];
+    return [
+      clamp(Math.round(mapped[0] * blend + center[0] * (1 - blend)), 0, 255),
+      clamp(Math.round(mapped[1] * blend + center[1] * (1 - blend)), 0, 255),
+      clamp(Math.round(mapped[2] * blend + center[2] * (1 - blend)), 0, 255)
+    ];
+  });
+
+  const recolored = new Uint8ClampedArray(data);
+  for (let i = 0, p = 0; i < recolored.length; i += 4, p++) {
+    const color = blendedColors[labels[p]];
+    recolored[i] = color[0];
+    recolored[i + 1] = color[1];
+    recolored[i + 2] = color[2];
+  }
+
+  ctx.putImageData(new ImageData(recolored, imageData.width, imageData.height), 0, 0);
 }
 
 // Adds subtle paper grain similar to printed manga texture.
