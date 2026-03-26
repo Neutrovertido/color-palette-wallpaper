@@ -36,6 +36,27 @@ function seededNoise(x, y, seed) {
   return n - Math.floor(n);
 }
 
+function convertToMonochrome(imageData) {
+  const data = imageData.data;
+  const result = new ImageData(
+    new Uint8ClampedArray(data),
+    imageData.width,
+    imageData.height
+  );
+  const resultData = result.data;
+
+  for (let i = 0; i < data.length; i += 4) {
+    // Perceptual grayscale conversion keeps luminance relationships stable.
+    const gray = Math.round(0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2]);
+    resultData[i] = gray;
+    resultData[i + 1] = gray;
+    resultData[i + 2] = gray;
+    resultData[i + 3] = data[i + 3];
+  }
+
+  return result;
+}
+
 // K-means clustering for dominant color extraction
 function extractDominantColors(imageData, colorCount = 8) {
   const data = imageData.data;
@@ -172,9 +193,10 @@ function applyColorMapping(imageData, colorMap, targetPalette, intensity = 1.0) 
 export function colorizeImage(canvas, targetPaletteColors, intensity = 1.0) {
   const ctx = canvas.getContext('2d');
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const monochromeImageData = convertToMonochrome(imageData);
 
-  // Extract dominant colors from the image
-  const sourceColors = extractDominantColors(imageData, Math.min(12, targetPaletteColors.length));
+  // Extract dominant tones from the monochrome image before palette conversion.
+  const sourceColors = extractDominantColors(monochromeImageData, Math.min(12, targetPaletteColors.length));
 
   // Convert hex palette to RGB
   const targetPaletteRgb = targetPaletteColors.map(hexToRgb);
@@ -183,7 +205,7 @@ export function colorizeImage(canvas, targetPaletteColors, intensity = 1.0) {
   const colorMap = buildColorMap(sourceColors, targetPaletteRgb);
 
   // Apply mapping with intensity
-  const colorizedImageData = applyColorMapping(imageData, colorMap, targetPaletteRgb, intensity);
+  const colorizedImageData = applyColorMapping(monochromeImageData, colorMap, targetPaletteRgb, intensity);
 
   // Put the colorized data back
   ctx.putImageData(colorizedImageData, 0, 0);
