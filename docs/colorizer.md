@@ -11,7 +11,7 @@ The colorizer takes an uploaded image and a selected target palette, then perfor
 3. Map each cluster centroid to the nearest color in the selected palette.
 4. Blend mapped palette colors with original centroids using the colorization intensity slider.
 5. Reconstruct the full image from cluster labels.
-6. Optionally apply paper-like manga grain using the noise slider.
+6. Optionally apply ordered dithering using a Bayer 4x4 matrix via the noise slider.
 7. Render and allow PNG download.
 
 Core implementation lives in [src/utils/imageProcessing.js](../src/utils/imageProcessing.js).
@@ -92,18 +92,18 @@ Each pixel output color is looked up by its cluster label:
 
 Result is written back into a new `ImageData` buffer, preserving alpha.
 
-## Paper Grain / Manga Noise Stage
+## Paper Grain / Ordered Dithering Stage
 
-After recoloring, optional paper grain is applied with `applyPaperNoise(...)`.
+After recoloring, optional ordered dithering is applied with `applyPaperNoise(...)` using a Bayer 4x4 matrix.
 
 Key characteristics:
 
-- Multi-scale procedural noise layers (fine grain + soft grain + line-like variation).
-- Luminance-aware strength (darker regions can receive slightly stronger texture).
-- Subtle channel offsets produce a paper-like warmth variation.
-- Controlled by the noise slider in range `[0, 1]`.
+- **Bayer 4x4 Matrix**: A structured 4x4 dithering pattern that tiles across the image for predictable, geometric dot placement.
+- **Luminance-aware scaling**: Dithering strength increases in darker regions and decreases in bright areas, creating natural-looking texture variation.
+- **Normalized threshold calculation**: Each pixel's position in the matrix determines a threshold in the 0-255 range for dithering application.
+- **Controlled by the noise slider**: Range `[0, 100]` with a power curve scaling for more pronounced effect at higher values.
 
-This stage is intentionally post-colorization so grain texture affects the final tinted image.
+This stage is intentionally post-colorization so dithering affects the final colored image, creating a refined printed/halftone aesthetic.
 
 ## UI Controls and Their Effect
 
