@@ -1,8 +1,12 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import '../styles/PreviewPanel.css';
 
-export default function PreviewPanel({ originalImage, colorizedCanvas }) {
-  const [showOriginal, setShowOriginal] = useState(true);
+export default function PreviewPanel({ 
+  originalImage, 
+  colorizedCanvas,
+  showColorized,
+  onToggle 
+}) {
   const canvasRef = useRef(null);
 
   useEffect(() => {
@@ -10,7 +14,7 @@ export default function PreviewPanel({ originalImage, colorizedCanvas }) {
 
     const ctx = canvasRef.current.getContext('2d');
 
-    if (showOriginal && originalImage) {
+    if (!showColorized && originalImage) {
       // Draw original image
       const maxWidth = canvasRef.current.width;
       const maxHeight = canvasRef.current.height;
@@ -33,7 +37,7 @@ export default function PreviewPanel({ originalImage, colorizedCanvas }) {
       ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
       ctx.drawImage(colorizedCanvas, x, y, colorizedCanvas.width * ratio, colorizedCanvas.height * ratio);
     }
-  }, [showOriginal, originalImage, colorizedCanvas]);
+  }, [showColorized, originalImage, colorizedCanvas]);
 
   const originalDimensions = originalImage 
     ? `${originalImage.width} × ${originalImage.height}px`
@@ -53,21 +57,21 @@ export default function PreviewPanel({ originalImage, colorizedCanvas }) {
       <div className="preview-controls">
         <div className="preview-toggle">
           <button
-            className={`toggle-btn ${showOriginal ? 'active' : ''}`}
-            onClick={() => setShowOriginal(true)}
+            className={`toggle-btn ${!showColorized ? 'active' : ''}`}
+            onClick={() => onToggle(false)}
             disabled={!originalImage}
           >
             Original
           </button>
           <button
-            className={`toggle-btn ${!showOriginal ? 'active' : ''}`}
-            onClick={() => setShowOriginal(false)}
+            className={`toggle-btn ${showColorized ? 'active' : ''}`}
+            onClick={() => onToggle(true)}
             disabled={!colorizedCanvas}
           >
             Colorized
           </button>
         </div>
-        <p className="preview-info">{showOriginal ? 'Original' : 'Colorized'} · {originalDimensions}</p>
+        <p className="preview-info">{!showColorized ? 'Original' : 'Colorized'} · {originalDimensions}</p>
       </div>
     </div>
   );
