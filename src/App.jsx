@@ -3,6 +3,7 @@ import UploadArea from './components/UploadArea';
 import PreviewPanel from './components/PreviewPanel';
 import SchemeSelector from './components/SchemeSelector';
 import DownloadButton from './components/DownloadButton';
+import LoadingModal from './components/LoadingModal';
 import { colorPalettes } from './data/colorPalettes';
 import { colorizeImage, copyCanvas, applyPaperNoise } from './utils/imageProcessing';
 import './styles/App.css';
@@ -14,6 +15,7 @@ export default function App() {
   const [noiseIntensity, setNoiseIntensity] = useState(0.2);
   const [colorizedCanvas, setColorizedCanvas] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [showColorized, setShowColorized] = useState(false);
   const workingCanvasRef = useRef(null);
 
   // Handle image upload
@@ -23,6 +25,7 @@ export default function App() {
     setIntensity(1.0);
     setNoiseIntensity(0.2);
     setColorizedCanvas(null);
+    setShowColorized(false);
   };
 
   // Create working canvas from original image
@@ -51,7 +54,7 @@ export default function App() {
     const processColorization = async () => {
       setIsLoading(true);
       
-      // Use setTimeout to allow UI to update
+      // Use a longer timeout to allow the loading modal to fully render before processing
       setTimeout(() => {
         try {
           const workingCanvas = getWorkingCanvas();
@@ -71,16 +74,25 @@ export default function App() {
         } finally {
           setIsLoading(false);
         }
-      }, 0);
+      }, 300);
     };
 
     processColorization();
   }, [selectedScheme, intensity, noiseIntensity, originalImage]);
 
+  // Auto-toggle to colorized view when colorization completes
+  useEffect(() => {
+    if (colorizedCanvas && !isLoading) {
+      setShowColorized(true);
+    }
+  }, [colorizedCanvas, isLoading]);
+
   return (
     <div className="app">
+      <LoadingModal isVisible={isLoading} />
+      
       <header className="app-header">
-        <h1>🎨 Wallpaper Colorizer</h1>
+        <h1>🧑‍🎨 Wallpaper Colorizer</h1>
         <p>Upload a wallpaper and explore it in different color schemes</p>
       </header>
 
@@ -115,6 +127,7 @@ export default function App() {
                     setIntensity(1.0);
                     setNoiseIntensity(0.2);
                     setColorizedCanvas(null);
+                    setShowColorized(false);
                   }}
                 >
                   Upload Different Image
@@ -125,6 +138,8 @@ export default function App() {
                 <PreviewPanel
                   originalImage={originalImage}
                   colorizedCanvas={colorizedCanvas}
+                  showColorized={showColorized}
+                  onToggle={setShowColorized}
                 />
               </div>
             </>
