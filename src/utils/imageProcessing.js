@@ -21,10 +21,16 @@ function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
 
-function seededNoise(x, y, seed) {
-  const n = Math.sin((x + 1) * 12.9898 + (y + 1) * 78.233 + seed * 37.719) * 43758.5453;
-  return n - Math.floor(n);
-}
+// Bayer 4x4 dithering matrix for ordered dithering
+const BAYER_4x4 = [
+  [ 0,  8,  2, 10],
+  [12,  4, 14,  6],
+  [ 3, 11,  1,  9],
+  [15,  7, 13,  5]
+];
+
+const BAYER_SIZE = 4;
+const BAYER_FACTOR = 256 / (BAYER_SIZE * BAYER_SIZE);
 
 function computeCentroids(pixels, nClusters) {
   const centroids = [];
@@ -174,7 +180,7 @@ export function colorizeImage(canvas, targetPaletteColors, intensity = 1.0) {
   ctx.putImageData(new ImageData(recolored, imageData.width, imageData.height), 0, 0);
 }
 
-// Adds subtle paper grain similar to printed manga texture.
+// Adds ordered dithering (Bayer 4x4 matrix) for paper-like texture
 export function applyPaperNoise(canvas, intensity = 0.0) {
   if (intensity <= 0) return;
 
@@ -192,21 +198,24 @@ export function applyPaperNoise(canvas, intensity = 0.0) {
     const g = data[i + 1];
     const b = data[i + 2];
 
-    const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    // Convert to grayscale using luma formula
+    const luma = 0.299 * r + 0.587 * g + 0.114 * b;
 
-    const highGrain = seededNoise(x, y, 11) - 0.5;
-    const softGrain = seededNoise(Math.floor(x / 3), Math.floor(y / 3), 23) - 0.5;
-    const fiberLine = seededNoise(0, y, 31) - 0.5;
+    // Find position in the Bayer matrix (tiling it across the image)
+    const matrixRow = y % BAYER_SIZE;
+    const matrixCol = x % BAYER_SIZE;
 
-    const grain = highGrain * 0.65 + softGrain * 0.35 + fiberLine * 0.25;
-    const dynamicStrength = (8 + ((255 - luma) / 255) * 10) * intensity;
-    const delta = grain * dynamicStrength;
+    // Get threshold from Bayer matrix and scale to 0-255 range
+    const threshold = BAYER_4x4[matrixRow][matrixCol] * BAYER_FACTOR;
 
-    const paperWarmth = (seededNoise(x, y, 47) - 0.5) * 4 * intensity;
+    // Apply dithering: add noise based on intensity (scaled higher for more pronounced effect)
+    const scaledIntensity = Math.pow(intensity / 100, 0.5) * 2.5;
+    const ditherStrength = (threshold - 128) * scaledIntensity;
+    const dynamicDither = ditherStrength * (1 + (Math.abs(luma - 128) / 128) * 0.5);
 
-    data[i] = clamp(Math.round(r + delta + paperWarmth), 0, 255);
-    data[i + 1] = clamp(Math.round(g + delta + paperWarmth * 0.8), 0, 255);
-    data[i + 2] = clamp(Math.round(b + delta - paperWarmth * 0.6), 0, 255);
+    data[i] = clamp(Math.round(r + dynamicDither), 0, 255);
+    data[i + 1] = clamp(Math.round(g + dynamicDither), 0, 255);
+    data[i + 2] = clamp(Math.round(b + dynamicDither), 0, 255);
   }
 
   ctx.putImageData(imageData, 0, 0);
